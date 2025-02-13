@@ -13,7 +13,6 @@ export default function ChatInterface() {
   const [sessions, setSessions] = useState([]);
   const [currentSession, setCurrentSession] = useState(null);
   const messagesEndRef = useRef(null);
-  console.log("messages", messages);
 
   useEffect(() => {
     const fetchUserSessions = async () => {
@@ -39,20 +38,41 @@ export default function ChatInterface() {
       }
     };
 
+    // Clean up previous socket instance if it exists
+    if (socket) {
+      socket.off("message");
+      socket.disconnect();
+    }
+
     const token = localStorage.getItem("token");
     const socketInstance = initializeSocket(token);
     setSocket(socketInstance);
 
     socketInstance.on("message", (message) => {
       if (currentSession && message.sessionId === currentSession) {
-        setMessages((prev) => [...prev, message]);
+        setMessages((prev) => {
+          // Check if message already exists to prevent duplicates
+          const messageExists = prev.some(
+            (m) =>
+              m.timestamp === message.timestamp &&
+              m.content === message.content &&
+              m.userId === message.userId
+          );
+          if (!messageExists) {
+            return [...prev, message];
+          }
+          return prev;
+        });
       }
     });
 
     fetchUserSessions();
 
     return () => {
-      socketInstance.off("message");
+      if (socketInstance) {
+        socketInstance.off("message");
+        socketInstance.disconnect();
+      }
     };
   }, [user.id]);
 
@@ -113,8 +133,9 @@ export default function ChatInterface() {
 
   const handleDeleteSession = async (sessionId) => {
     try {
-      await fetch(
-        import.meta.env.VITE_BACKEND_API_URL + `/api/sessions/${sessionId}`,
+      // Delete session
+      const sessionResponse = await fetch(
+        `${import.meta.env.VITE_BACKEND_API_URL}/api/sessions/${sessionId}`,
         {
           method: "DELETE",
           headers: {
@@ -123,22 +144,48 @@ export default function ChatInterface() {
         }
       );
 
+      if (!sessionResponse.ok) {
+        throw new Error("Failed to delete session");
+      }
+
+      // Delete all messages associated with this session
+      const messagesResponse = await fetch(
+        `${
+          import.meta.env.VITE_BACKEND_API_URL
+        }/api/messages/session/${sessionId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      if (!messagesResponse.ok) {
+        throw new Error("Failed to delete session messages");
+      }
+
       setSessions((prev) => {
         const updatedSessions = prev.filter(
           (session) => session.sessionId !== sessionId
         );
-        if (currentSession === sessionId && updatedSessions.length > 0) {
-          setCurrentSession(updatedSessions[0].sessionId);
-          fetchSessionMessages(updatedSessions[0].sessionId);
-        } else if (updatedSessions.length === 0) {
-          setCurrentSession(null);
-          setMessages([]);
+
+        if (currentSession === sessionId) {
+          if (updatedSessions.length > 0) {
+            setCurrentSession(updatedSessions[0].sessionId);
+            fetchSessionMessages(updatedSessions[0].sessionId);
+          } else {
+            setCurrentSession(null);
+            setMessages([]);
+          }
         }
+
         toast.success("Chat session deleted successfully");
         return updatedSessions;
       });
     } catch (error) {
       console.error("Error deleting session:", error);
+      toast.error("Failed to delete chat session");
     }
   };
 
@@ -150,20 +197,13 @@ export default function ChatInterface() {
         sessionId: currentSession,
         userId: user.id,
         timestamp: new Date().toISOString(),
-      };
-
-      // Optimistically add user message to UI
-      const userMessage = {
-        content: messageData.content,
-        sessionId: currentSession,
-        userId: user.id,
-        timestamp: messageData.timestamp,
         isServerReply: false,
       };
-      setMessages((prev) => [...prev, userMessage]);
 
-      // Send message through socket
+      // Send message through socket first
       socket.emit("sendMessage", messageData);
+
+      // Clear input immediately
       setNewMessage("");
     }
   };
