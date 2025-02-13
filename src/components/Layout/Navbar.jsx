@@ -23,7 +23,7 @@ export default function Navbar() {
       <nav className="bg-[#333333] text-white fixed w-full z-10 shadow-2xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
-            <div className="flex-shrink-0 flex items-center gap-2 justify-center">
+            <div className={`flex-shrink-0 flex items-center gap-2 justify-center ${user && "ml-12"}`}>
               <img src={logo} className="h-9 w-9" alt="Logo" />
               <h1 className="text-xl font-bold">Chat App</h1>
             </div>

@@ -1,1 +1,11 @@
 @import "tailwindcss";
+
+@layer utilities {
+  .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+body {
+  @apply overflow-hidden;
+}
