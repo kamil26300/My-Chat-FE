@@ -9,14 +9,12 @@ export default function Message({ message, isOwnMessage }) {
           isOwnMessage ? "bg-[#3498DB] rounded-tr-none" : "bg-gray-600 rounded-tl-none"
         }`}
       >
-        {!isOwnMessage && (
-          <p className="text-sm font-semibold mb-1">{message.username}</p>
+        {message.isServerReply && (
+          <p className="text-sm font-semibold mb-1">Server</p>
         )}
         <p className="break-words break-all">{message.content}</p>
         <p
-          className={`text-xs ${
-            isOwnMessage ? "text-indigo-100" : "text-gray-500"
-          } mt-1`}
+          className="text-xs text-indigo-100 mt-1"
         >
           {new Date(message.timestamp).toLocaleString()}
         </p>

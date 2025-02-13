@@ -1,125 +1,145 @@
-import { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import Message from './Message';
-import Sidebar from './Sidebar';
-import { initializeSocket, sendMessage } from '../../utils/websocket';
+import { useState, useEffect, useRef } from "react";
+import { useAuth } from "../../context/AuthContext";
+import Message from "./Message";
+import Sidebar from "./Sidebar";
+import { initializeSocket } from "../../utils/websocket";
+import toast from "react-hot-toast";
 
 export default function ChatInterface() {
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
+  const [newMessage, setNewMessage] = useState("");
   const [socket, setSocket] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [currentSession, setCurrentSession] = useState(null);
   const messagesEndRef = useRef(null);
+  console.log("messages", messages);
 
   useEffect(() => {
-    // Load sessions from localStorage
-    const savedSessions = JSON.parse(localStorage.getItem('chatSessions')) || [];
-    setSessions(savedSessions);
-    
-    if (savedSessions.length > 0) {
-      setCurrentSession(savedSessions[0].id);
-      setMessages(savedSessions[0].messages || []);
-    }
+    const fetchUserSessions = async () => {
+      try {
+        const response = await fetch(
+          import.meta.env.VITE_BACKEND_API_URL +
+            `/api/sessions?userId=${user.id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        );
+        const data = await response.json();
+        setSessions(data.data || []);
 
-    const token = localStorage.getItem('token');
+        if (data.data.length > 0) {
+          setCurrentSession(data.data[0].sessionId);
+          fetchSessionMessages(data.data[0].sessionId);
+        }
+      } catch (error) {
+        console.error("Error fetching sessions:", error);
+      }
+    };
+
+    const token = localStorage.getItem("token");
     const socketInstance = initializeSocket(token);
     setSocket(socketInstance);
 
-    socketInstance.on('message', (message) => {
-      if (currentSession) {
-        addMessageToSession(currentSession, message);
+    socketInstance.on("message", (message) => {
+      if (currentSession && message.sessionId === currentSession) {
+        setMessages((prev) => [...prev, message]);
       }
     });
+
+    fetchUserSessions();
 
     return () => {
-      socketInstance.off('message');
+      socketInstance.off("message");
     };
-  }, []);
+  }, [user.id]);
 
-  // Update messages when switching sessions
-  useEffect(() => {
-    if (currentSession) {
-      const currentSessionData = sessions.find(session => session.id === currentSession);
-      if (currentSessionData) {
-        setMessages(currentSessionData.messages || []);
-      }
-    }
-  }, [currentSession, sessions]);
-
-  const addMessageToSession = (sessionId, message) => {
-    setSessions(prev => {
-      const updatedSessions = prev.map(session => {
-        if (session.id === sessionId) {
-          // Create a new messages array if it doesn't exist
-          const updatedMessages = [...(session.messages || []), message];
-          return {
-            ...session,
-            messages: updatedMessages,
-            // Update the session name with the first message if it's the default name
-            name: session.name === `Chat ${prev.length}` && updatedMessages.length === 1 
-              ? message.content.substring(0, 30) 
-              : session.name
-          };
+  const fetchSessionMessages = async (sessionId) => {
+    try {
+      const response = await fetch(
+        import.meta.env.VITE_BACKEND_API_URL +
+          `/api/messages/session?sessionId=${sessionId}&userId=${user.id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         }
-        return session;
-      });
-      
-      // Update localStorage
-      localStorage.setItem('chatSessions', JSON.stringify(updatedSessions));
-      
-      // If this is the current session, update the messages state
-      if (sessionId === currentSession) {
-        const currentSessionData = updatedSessions.find(s => s.id === sessionId);
-        setMessages(currentSessionData.messages || []);
-      }
-      
-      return updatedSessions;
-    });
+      );
+      const data = await response.json();
+      setMessages(data || []);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+    }
   };
 
-  const handleNewSession = () => {
-    const newSession = {
-      id: Date.now(),
-      name: `Chat ${sessions.length + 1}`,
-      messages: [],
-      timestamp: new Date().toISOString()
-    };
-    setSessions(prev => {
-      const updatedSessions = [newSession, ...prev];
-      localStorage.setItem('chatSessions', JSON.stringify(updatedSessions));
-      return updatedSessions;
-    });
-    setCurrentSession(newSession.id);
-    setMessages([]);
+  const handleNewSession = async () => {
+    try {
+      const sessionId = Date.now().toString();
+      const response = await fetch(
+        import.meta.env.VITE_BACKEND_API_URL + "/api/sessions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({
+            data: {
+              name: `Chat ${sessions.length + 1}`,
+              userId: user.id,
+              sessionId: sessionId,
+              timestamp: new Date().toISOString(),
+            },
+          }),
+        }
+      );
+
+      const newSession = await response.json();
+      setSessions((prev) => [newSession.data, ...prev]);
+      setCurrentSession(sessionId);
+      setMessages([]);
+      toast("New chat session created");
+    } catch (error) {
+      console.error("Error creating session:", error);
+    }
   };
 
   const handleSelectSession = (sessionId) => {
     setCurrentSession(sessionId);
-    const session = sessions.find(s => s.id === sessionId);
-    if (session) {
-      setMessages(session.messages || []);
-    }
+    fetchSessionMessages(sessionId);
   };
 
-  const handleDeleteSession = (sessionId) => {
-    setSessions(prev => {
-      const updatedSessions = prev.filter(session => session.id !== sessionId);
-      localStorage.setItem('chatSessions', JSON.stringify(updatedSessions));
-      
-      if (currentSession === sessionId) {
-        if (updatedSessions.length > 0) {
-          setCurrentSession(updatedSessions[0].id);
-          setMessages(updatedSessions[0].messages || []);
-        } else {
+  const handleDeleteSession = async (sessionId) => {
+    try {
+      await fetch(
+        import.meta.env.VITE_BACKEND_API_URL + `/api/sessions/${sessionId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      setSessions((prev) => {
+        const updatedSessions = prev.filter(
+          (session) => session.sessionId !== sessionId
+        );
+        if (currentSession === sessionId && updatedSessions.length > 0) {
+          setCurrentSession(updatedSessions[0].sessionId);
+          fetchSessionMessages(updatedSessions[0].sessionId);
+        } else if (updatedSessions.length === 0) {
           setCurrentSession(null);
           setMessages([]);
         }
-      }
-      
-      return updatedSessions;
-    });
+        toast.success("Chat session deleted successfully");
+        return updatedSessions;
+      });
+    } catch (error) {
+      console.error("Error deleting session:", error);
+    }
   };
 
   const handleSubmit = (e) => {
@@ -127,22 +147,29 @@ export default function ChatInterface() {
     if (newMessage.trim() && socket && currentSession) {
       const messageData = {
         content: newMessage.trim(),
+        sessionId: currentSession,
+        userId: user.id,
         timestamp: new Date().toISOString(),
-        username: user.username
       };
-      
-      // Add message to current session immediately (optimistic update)
-      addMessageToSession(currentSession, messageData);
-      
+
+      // Optimistically add user message to UI
+      const userMessage = {
+        content: messageData.content,
+        sessionId: currentSession,
+        userId: user.id,
+        timestamp: messageData.timestamp,
+        isServerReply: false,
+      };
+      setMessages((prev) => [...prev, userMessage]);
+
       // Send message through socket
-      sendMessage(newMessage.trim());
-      
-      setNewMessage('');
+      socket.emit("sendMessage", messageData);
+      setNewMessage("");
     }
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(scrollToBottom, [messages]);
@@ -165,19 +192,20 @@ export default function ChatInterface() {
                 <Message
                   key={index}
                   message={message}
-                  isOwnMessage={message.username === user.username}
+                  isOwnMessage={!message.isServerReply}
                 />
               ))}
               <div ref={messagesEndRef} />
             </div>
-            <form onSubmit={handleSubmit} className="p-4 placeholder-white text-white border-white border-t">
+            <form
+              onSubmit={handleSubmit}
+              className="p-4 placeholder-white text-white border-white border-t"
+            >
               <div className="flex space-x-2">
                 <input
                   type="text"
                   value={newMessage}
-                  onChange={(e) => {
-                    setNewMessage(e.target.value);
-                  }}
+                  onChange={(e) => setNewMessage(e.target.value)}
                   className="flex-1 rounded border border-gray-300 px-4 py-2 focus:outline-none focus:ring-1 focus:ring-[#3498DB]"
                   placeholder="Type your message..."
                 />

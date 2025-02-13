@@ -5,7 +5,6 @@ import {
   TrashIcon,
 } from "@heroicons/react/24/solid";
 import { useState, useEffect } from "react";
-import toast from "react-hot-toast";
 import Modal from "react-modal";
 
 export default function Sidebar({
@@ -52,7 +51,6 @@ export default function Sidebar({
   const confirmDelete = () => {
     if (sessionToDelete) {
       onDeleteSession(sessionToDelete);
-      toast.success("Chat session deleted successfully");
     }
     closeModal();
   };
@@ -63,7 +61,6 @@ export default function Sidebar({
       <div className="p-4">
         <button
           onClick={() => {
-            toast("New chat session created");
             onNewSession();
             setIsMobileMenuOpen(false);
           }}
@@ -78,25 +75,22 @@ export default function Sidebar({
       <div className="flex-1 overflow-y-auto">
         {sessions.map((session) => (
           <div
-            key={session.id}
-            onClick={() => handleSessionSelect(session.id)}
+            key={session.sessionId}
+            onClick={() => handleSessionSelect(session.sessionId)}
             className={`p-4 cursor-pointer hover:bg-gray-700 transition-colors ${
-              currentSession === session.id ? "bg-gray-700" : ""
+              currentSession === session.sessionId ? "bg-gray-700" : ""
             }`}
           >
             <div className="flex justify-between items-center">
               <div className="text-gray-300 truncate flex-1">
                 <h3 className="font-medium">{session.name}</h3>
-                <p className="text-sm text-gray-400 truncate">
-                  {session.messages[session.messages.length - 1]?.content ||
-                    "No messages"}
-                </p>
+                {/* // display last message */}
               </div>
-              {currentSession === session.id && (
+              {currentSession === session.sessionId && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    openModal(session.id);
+                    openModal(session.sessionId);
                   }}
                   className="text-gray-400 hover:text-[#E74C3C] transition-colors duration-300 cursor-pointer ml-2"
                 >
