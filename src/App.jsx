@@ -1,5 +1,5 @@
 import {
-  BrowserRouter as Router,
+  HashRouter as Router,
   Routes,
   Route,
   Navigate,
@@ -9,6 +9,7 @@ import Login from "./components/Auth/Login";
 import Register from "./components/Auth/Register";
 import ChatInterface from "./components/Chat/ChatInterface";
 import Navbar from "./components/Layout/Navbar";
+import { Toaster } from "react-hot-toast";
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -23,6 +24,7 @@ function PrivateRoute({ children }) {
 function App() {
   return (
     <AuthProvider>
+      <Toaster />
       <Router>
         <div className="min-h-screen">
           <Navbar />
