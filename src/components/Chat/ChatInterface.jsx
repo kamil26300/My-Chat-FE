@@ -2,18 +2,16 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import Message from './Message';
 import Sidebar from './Sidebar';
-import { initializeSocket, sendMessage, setTypingStatus } from '../../utils/websocket';
+import { initializeSocket, sendMessage } from '../../utils/websocket';
 
 export default function ChatInterface() {
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [typingUsers, setTypingUsers] = useState(new Set());
   const [socket, setSocket] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [currentSession, setCurrentSession] = useState(null);
   const messagesEndRef = useRef(null);
-  const typingTimeoutRef = useRef(null);
 
   useEffect(() => {
     // Load sessions from localStorage
@@ -35,21 +33,8 @@ export default function ChatInterface() {
       }
     });
 
-    socketInstance.on('userTyping', ({ username, isTyping }) => {
-      setTypingUsers(prev => {
-        const newSet = new Set(prev);
-        if (isTyping) {
-          newSet.add(username);
-        } else {
-          newSet.delete(username);
-        }
-        return newSet;
-      });
-    });
-
     return () => {
       socketInstance.off('message');
-      socketInstance.off('userTyping');
     };
   }, []);
 
@@ -137,20 +122,6 @@ export default function ChatInterface() {
     });
   };
 
-  const handleTyping = () => {
-    if (socket) {
-      setTypingStatus(true);
-      
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-
-      typingTimeoutRef.current = setTimeout(() => {
-        setTypingStatus(false);
-      }, 2000);
-    }
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
     if (newMessage.trim() && socket && currentSession) {
@@ -167,10 +138,6 @@ export default function ChatInterface() {
       sendMessage(newMessage.trim());
       
       setNewMessage('');
-      setTypingStatus(false);
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
     }
   };
 
@@ -201,12 +168,6 @@ export default function ChatInterface() {
                   isOwnMessage={message.username === user.username}
                 />
               ))}
-              {typingUsers.size > 0 && (
-                <div className="text-sm text-gray-500 italic">
-                  {Array.from(typingUsers).join(", ")}{" "}
-                  {typingUsers.size === 1 ? "is" : "are"} typing...
-                </div>
-              )}
               <div ref={messagesEndRef} />
             </div>
             <form onSubmit={handleSubmit} className="p-4 placeholder-white text-white border-white border-t">
@@ -216,7 +177,6 @@ export default function ChatInterface() {
                   value={newMessage}
                   onChange={(e) => {
                     setNewMessage(e.target.value);
-                    handleTyping();
                   }}
                   className="flex-1 rounded border border-gray-300 px-4 py-2 focus:outline-none focus:ring-1 focus:ring-[#3498DB]"
                   placeholder="Type your message..."

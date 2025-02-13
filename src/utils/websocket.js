@@ -34,15 +34,8 @@ export const sendMessage = (content) => {
   }
 };
 
-export const setTypingStatus = (isTyping) => {
-  if (socket) {
-    socket.emit("typing", isTyping);
-  }
-};
-
 export default {
   initializeSocket,
   disconnectSocket,
   sendMessage,
-  setTypingStatus,
 };
