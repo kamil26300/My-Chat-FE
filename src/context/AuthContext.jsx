@@ -20,7 +20,9 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = async () => {
     try {
-      const response = await axios.get("http://localhost:1337/api/users/me");
+      const response = await axios.get(
+        import.meta.env.VITE_BACKEND_API_URL + "/api/users/me"
+      );
       setUser(response.data);
     } catch (error) {
       localStorage.removeItem("token");
@@ -32,7 +34,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (identifier, password) => {
     try {
       const response = await axios.post(
-        "http://localhost:1337/api/auth/local",
+        import.meta.env.VITE_BACKEND_API_URL + "/api/auth/local",
         {
           identifier,
           password,
@@ -61,7 +63,7 @@ export const AuthProvider = ({ children }) => {
   const register = async (username, email, password) => {
     try {
       const response = await axios.post(
-        "http://localhost:1337/api/auth/local/register",
+        import.meta.env.VITE_BACKEND_API_URL + "/api/auth/local/register",
         {
           username,
           email,

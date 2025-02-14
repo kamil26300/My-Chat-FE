@@ -5,7 +5,7 @@ let socket = null;
 export const initializeSocket = (token) => {
   if (socket) return socket;
 
-  socket = io("http://localhost:1337", {
+  socket = io(import.meta.env.VITE_BACKEND_API_URL, {
     auth: { token },
     autoConnect: true,
   });
