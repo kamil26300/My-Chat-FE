@@ -2,9 +2,6 @@ import { createContext, useState, useContext, useEffect } from "react";
 import { initializeSocket, disconnectSocket } from "../utils/websocket";
 import axios from "axios";
 
-axios.defaults.withCredentials = true;
-axios.defaults.headers.common['Access-Control-Allow-Origin'] = import.meta.env.VITE_BACKEND_API_URL;
-
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
