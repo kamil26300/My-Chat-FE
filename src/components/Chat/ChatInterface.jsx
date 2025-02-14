@@ -27,11 +27,11 @@ export default function ChatInterface() {
           }
         );
         const data = await response.json();
-        setSessions(data.data || []);
+        setSessions(data || []);
 
-        if (data.data.length > 0) {
-          setCurrentSession(data.data[0].sessionId);
-          fetchSessionMessages(data.data[0].sessionId);
+        if (data.length > 0) {
+          setCurrentSession(data[0].sessionId);
+          fetchSessionMessages(data[0].sessionId);
         }
       } catch (error) {
         console.error("Error fetching sessions:", error);
@@ -49,21 +49,7 @@ export default function ChatInterface() {
     setSocket(socketInstance);
 
     socketInstance.on("message", (message) => {
-      if (currentSession && message.sessionId === currentSession) {
-        setMessages((prev) => {
-          // Check if message already exists to prevent duplicates
-          const messageExists = prev.some(
-            (m) =>
-              m.timestamp === message.timestamp &&
-              m.content === message.content &&
-              m.userId === message.userId
-          );
-          if (!messageExists) {
-            return [...prev, message];
-          }
-          return prev;
-        });
-      }
+      setMessages((prev) => [...prev, message]);
     });
 
     fetchUserSessions();
