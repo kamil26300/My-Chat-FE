@@ -3,7 +3,7 @@ import { initializeSocket, disconnectSocket } from "../utils/websocket";
 import axios from "axios";
 
 axios.defaults.withCredentials = true;
-axios.defaults.headers.common['Access-Control-Allow-Origin'] = 'https://my-chat-mz9q.onrender.com';
+axios.defaults.headers.common['Access-Control-Allow-Origin'] = import.meta.env.VITE_BACKEND_API_URL;
 
 const AuthContext = createContext();
 
