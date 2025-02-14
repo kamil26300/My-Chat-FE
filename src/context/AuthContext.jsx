@@ -2,6 +2,9 @@ import { createContext, useState, useContext, useEffect } from "react";
 import { initializeSocket, disconnectSocket } from "../utils/websocket";
 import axios from "axios";
 
+axios.defaults.withCredentials = true;
+axios.defaults.headers.common['Access-Control-Allow-Origin'] = 'https://my-chat-mz9q.onrender.com';
+
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
